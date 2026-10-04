@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5c518">
+<title>Kuis Kelistrikan Sepeda Motor</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<style>
+:root{--bg:#e6e8ea;--ink:#16181a;--mute:#5b6268;--yel:#f5c518;--ok:#1b7f4b;--bad:#c23b2a;--pan:#fbfbfb}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+h1,h2,h3,.cond{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-weight:700;margin:0}
+header{background:var(--ink);color:#fff;border-bottom:5px solid var(--yel);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+header h1{font-size:26px;line-height:1.1}
+header p{margin:0;font-size:14px;color:#b9bec3}
+.hbtns{display:flex;gap:8px}
+.btn{border:2px solid var(--ink);background:var(--pan);padding:8px 14px;border-radius:3px;font-weight:600}
+.btn:hover{background:#fff}
+header .btn{background:transparent;color:#fff;border-color:#6b7279}
+header .btn:hover{border-color:#fff}
+main{max-width:1180px;margin:0 auto;padding:20px;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:20px;align-items:start}
+.panel{background:var(--pan);border:2px solid var(--ink);border-radius:3px}
+.stage{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden}
+.stage canvas{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+#video{position:absolute;width:2px;height:2px;opacity:0;pointer-events:none}
+.tag{position:absolute;top:10px;background:rgba(0,0,0,.78);color:#fff;padding:6px 10px;font-weight:600;font-size:14px;border-left:5px solid;transition:background .15s}
+.tag.l{left:10px;border-color:var(--bad)}.tag.r{right:10px;border-color:var(--ok)}
+.tag.on{background:#fff;color:var(--ink)}
+#banner{position:absolute;top:56px;left:50%;transform:translateX(-50%);background:var(--yel);color:var(--ink);padding:5px 14px;font-weight:600;font-size:15px;display:none;white-space:nowrap}
+.holdwrap{position:absolute;left:10px;right:10px;bottom:10px;height:12px;background:rgba(0,0,0,.6)}
+#holdbar{height:100%;width:0;background:var(--yel)}
+#camMsg{position:absolute;inset:0;background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:6px}
+#camMsg b{font-size:18px}#camMsg span{color:#b9bec3;font-size:14px;max-width:420px}
+.hint{margin:10px 2px 0;font-size:14px;color:var(--mute)}
+.side{display:flex;flex-direction:column;gap:16px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr)}
+.stats div{padding:8px 12px;border-right:2px solid var(--ink)}
+.stats div:last-child{border:0}
+.stats small{display:block;color:var(--mute);font-size:13px}
+.stats .cond{font-size:32px;line-height:1.1}
+#time.low{color:var(--bad)}
+.q{padding:16px;display:flex;flex-direction:column;gap:14px;min-height:300px}
+.qmeta{display:flex;justify-content:space-between;font-size:14px;color:var(--mute)}
+#qtext{font-size:30px;line-height:1.15;font-weight:700;font-family:'Barlow Condensed','Arial Narrow',sans-serif;margin:auto 0}
+#fb{display:none;padding:10px 12px;border-left:6px solid;background:#f0f1f2;font-size:15px}
+#fb.ok{border-color:var(--ok)}#fb.bad{border-color:var(--bad)}#fb.warn{border-color:var(--yel)}
+.row{display:flex;gap:8px}
+.row .btn{flex:1}
+.start{background:var(--yel);font-weight:700;font-size:18px;padding:11px}
+.start:hover{background:#ffd43b}
+.ans.t{border-color:var(--ok);color:var(--ok)}.ans.f{border-color:var(--bad);color:var(--bad)}
+.ans:disabled,#stop:disabled{opacity:.4;cursor:not-allowed}
+.modal{position:fixed;inset:0;background:rgba(22,24,26,.7);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.open{display:flex}
+.box{width:100%;max-width:640px;max-height:85vh;overflow:auto;padding:18px}
+.box .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.box h3{font-size:24px}
+.qi{padding:8px 0;border-top:1px solid #ccd0d3;font-size:15px}
+.qi small{display:block;color:var(--mute)}
+.field{margin-bottom:16px}
+.field label{display:flex;justify-content:space-between;font-weight:600}
+.field input{width:100%;accent-color:var(--ink)}
+.field p{margin:2px 0 0;font-size:13px;color:var(--mute)}
+@media(max-width:760px){main{grid-template-columns:1fr;padding:12px}header p{display:none}#qtext{font-size:26px}}
+
+/* ---- tampilan v2 ---- */
+body{background-color:var(--bg);background-image:radial-gradient(#b4bbc0 1.2px,transparent 1.2px);background-size:20px 20px}
+header{background:var(--yel);color:var(--ink);padding:14px 24px;position:relative;border-bottom:0;margin-bottom:18px}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-18px;height:15px;border-block:3px solid var(--ink);background:repeating-linear-gradient(-45deg,var(--ink) 0 14px,var(--yel) 14px 28px)}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;flex:none}
+header h1{font-size:31px}
+header p{color:#4d4300}
+header .btn{background:var(--ink);color:#fff;border-color:var(--ink);box-shadow:none}
+header .btn:hover{background:#fff;color:var(--ink)}
+main{padding-top:30px}
+.btn{box-shadow:3px 3px 0 var(--ink);transition:transform .08s,box-shadow .08s}
+.btn:active:not(:disabled){transform:translate(3px,3px);box-shadow:none}
+.panel{border-width:3px;border-radius:4px;box-shadow:6px 6px 0 var(--ink)}
+.tag{top:0;bottom:0;width:20%;border:0;padding:14px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;color:#fff;pointer-events:none;font-weight:400}
+.tag b{font:700 30px/1 'Barlow Condensed','Arial Narrow',sans-serif}
+.tag small{font-size:13px}
+.tag.l{left:0;background:rgba(194,59,42,.3);border-right:3px solid var(--bad)}
+.tag.r{right:0;background:rgba(27,127,75,.3);border-left:3px solid var(--ok)}
+.tag.on{color:#fff}
+.tag.on.l{background:rgba(194,59,42,.8)}.tag.on.r{background:rgba(27,127,75,.8)}
+#banner{top:14px;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.holdwrap{left:24%;right:24%;bottom:12px;height:16px;border:2px solid #fff}
+.hint{border-left:6px solid var(--yel);background:rgba(255,255,255,.7);padding:6px 12px;margin:18px 0 0}
+.stats{grid-template-columns:1fr 1fr auto;align-items:stretch}
+.stats>div{padding:10px 14px;border-right:3px solid var(--ink)}
+.stats .cond{font-size:40px;line-height:1}
+.stats .gauge{position:relative;width:88px;padding:6px;display:flex;align-items:center;justify-content:center;border:0}
+.gauge svg{width:100%;transform:rotate(-90deg)}
+.gauge circle{fill:none;stroke-width:5}
+.g0{stroke:#dfe2e4}
+.g1{stroke:var(--ink);stroke-dasharray:113.1;stroke-dashoffset:0;transition:stroke-dashoffset .2s linear}
+.stats .gauge .cond{position:absolute;font-size:26px}
+.gauge.low .g1{stroke:var(--bad)}.gauge.low .cond{color:var(--bad)}
+.q{--c:var(--yel);--on:var(--ink);border-top:14px solid var(--c);padding:16px 18px 18px;min-height:340px}
+.q[data-cat="1"]{--c:var(--bad);--on:#fff}
+.q[data-cat="2"]{--c:#ee8a14}
+#qcat{background:var(--c);color:var(--on);padding:2px 10px;font-weight:600;border-radius:2px}
+.steps{display:flex;gap:3px;min-height:8px}
+.steps i{flex:1;height:8px;background:#d5d9dc}
+.steps i.ok{background:var(--ok)}.steps i.bad{background:var(--bad)}.steps i.cur{background:var(--ink)}
+#qtext{font-size:34px}
+#fb{border:2px solid var(--ink);border-left-width:10px;background:#f3f4f5;animation:pop .25s ease-out}
+#fb.ok{border-left-color:var(--ok)}#fb.bad{border-left-color:var(--bad)}#fb.warn{border-left-color:var(--yel)}
+@keyframes pop{from{transform:scale(.97);opacity:0}}
+@media(prefers-reduced-motion:reduce){#fb{animation:none}.g1{transition:none}}
+.ans{padding:12px;font:700 26px/1 'Barlow Condensed','Arial Narrow',sans-serif;color:#fff}
+.ans.t{background:var(--ok);border-color:var(--ink);color:#fff}
+.ans.f{background:var(--bad);border-color:var(--ink);color:#fff}
+.ans.t:hover{background:#17693f}.ans.f:hover{background:#a5301f}
+.ans:disabled{box-shadow:none}
+.start{font:700 26px/1 'Barlow Condensed','Arial Narrow',sans-serif;padding:14px}
+@media(max-width:760px){.tag{width:22%}.tag b{font-size:22px}.tag small{display:none}}
+
+/* ---- HP & TV ---- */
+html{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.btn{min-height:46px}
+.btn:focus-visible,.start:focus-visible{outline:4px solid #1a6dff;outline-offset:3px}
+.stage{max-height:78vh}
+.stage canvas{object-fit:contain}
+@media(max-width:760px){
+  header{flex-wrap:wrap;padding:10px 14px}
+  header h1{font-size:23px}.logo{width:34px;height:34px}
+  main{padding:26px 12px 16px;gap:16px}
+  .stats .cond{font-size:32px}.stats .gauge{width:76px}
+  #qtext{font-size:27px}.q{min-height:0}
+  .panel{box-shadow:4px 4px 0 var(--ink)}
+}
+@media(max-height:480px) and (orientation:landscape){.stage{max-height:none}}
+@media(min-width:1500px){body{zoom:1.3}}
+@media(min-width:2400px){body{zoom:1.8}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="17" r="12" fill="#15171a"/><path d="M14.5 17l3.5 5 2-7 2 7 3.5-5" stroke="#f5c518" stroke-width="2.2" fill="none" stroke-linejoin="round"/><rect x="14" y="30" width="12" height="7" rx="1" fill="#15171a"/></svg><div><h1>Kuis Kelistrikan Sepeda Motor</h1><p>Jawab dengan gerakan tangan di depan kamera</p></div></div>
+  <div class="hbtns">
+    <button class="btn" id="openQ">Daftar soal</button>
+    <button class="btn" id="openCal">Pengaturan</button>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="panel stage" id="stage">
+      <video id="video" playsinline muted></video>
+      <canvas id="cv"></canvas>
+      <div class="tag l" id="zl"><b>SALAH</b><small>tangan kiri</small></div>
+      <div class="tag r" id="zr"><b>BENAR</b><small>tangan kanan</small></div>
+      <div id="banner"></div>
+      <div class="holdwrap"><div id="holdbar"></div></div>
+      <div id="camMsg"><b>Menyiapkan kamera</b><span>Izinkan akses kamera saat browser meminta.</span></div>
+    </div>
+    <p class="hint">Angkat satu tangan dengan telapak terbuka menghadap kamera dan tahan sampai bar kuning penuh. Turunkan tangan sebelum menjawab soal berikutnya. Tombol panah kiri/kanan (termasuk di remote TV) juga bisa dipakai.</p>
+  </section>
+
+  <section class="side">
+    <div class="panel stats">
+      <div><small>Skor</small><span class="cond" id="score">0</span></div>
+      <div><small>Benar</small><span class="cond" id="streak">0</span></div>
+      <div class="gauge" id="gauge"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="g0" cx="22" cy="22" r="18"/><circle class="g1" id="ring" cx="22" cy="22" r="18"/></svg><span class="cond" id="time">15</span></div>
+    </div>
+
+    <div class="panel q" id="qcard">
+      <div class="qmeta"><span id="qcat">Siap dimulai</span><span id="qnum"></span></div>
+      <div class="steps" id="steps"></div>
+      <h2 id="qtext">Tekan Mulai untuk memunculkan soal pertama.</h2>
+      <div id="fb"></div>
+      <div class="row">
+        <button class="btn ans f" id="ansF" disabled>Salah</button>
+        <button class="btn ans t" id="ansT" disabled>Benar</button>
+      </div>
+      <div class="row">
+        <button class="btn start" id="start">Mulai</button>
+        <button class="btn" id="stop" disabled style="flex:0 0 auto">Berhenti</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="mQ"><div class="panel box" role="dialog" aria-label="Daftar soal">
+  <div class="top"><h3>Daftar soal</h3><button class="btn" data-close>Tutup</button></div>
+  <div id="qlist"></div>
+</div></div>
+
+<div class="modal" id="mCal"><div class="panel box" role="dialog" aria-label="Pengaturan" style="max-width:440px">
+  <div class="top"><h3>Pengaturan</h3><button class="btn" data-close>Tutup</button></div>
+  <div class="field"><label for="sHold">Lama menahan tangan <span id="vHold"></span></label>
+    <input type="range" id="sHold" min="0.5" max="3" step="0.1">
+    <p>Makin lama, makin kecil kemungkinan jawaban terpilih tanpa sengaja.</p></div>
+  <div class="field"><label for="sConf">Ambang deteksi tangan <span id="vConf"></span></label>
+    <input type="range" id="sConf" min="0.3" max="0.9" step="0.05">
+    <p>Turunkan jika tangan sulit terbaca, naikkan jika sering salah baca.</p></div>
+  <label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="sSound" style="accent-color:#16181a"> Efek suara</label>
+</div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const CATS = ['Lampu depan', 'Lampu belakang dan rem', 'Lampu sein'];
+// [kategori, pernyataan, jawaban (1 = benar), penjelasan]
+const RAW = [
+[0,"Lampu depan berfungsi untuk membantu pengendara melihat jalan pada kondisi gelap.",1,"Lampu depan menerangi jalan di depan kendaraan saat minim cahaya."],
+[0,"Lampu jauh digunakan untuk menerangi jalan lebih jauh di depan kendaraan.",1,"Pancaran lampu jauh menjangkau jarak yang lebih panjang."],
+[0,"Lampu dekat digunakan agar tidak menyilaukan pengendara dari arah berlawanan.",1,"Sorot lampu dekat diarahkan lebih ke bawah."],
+[0,"Sekring berfungsi melindungi rangkaian kelistrikan dari arus berlebihan.",1,"Sekring putus jika terjadi korsleting atau beban berlebih."],
+[0,"Saklar lampu digunakan untuk mengatur atau menghubungkan aliran listrik menuju lampu.",1,"Saklar menghubungkan dan memutus arus listrik."],
+[0,"Jika bohlam lampu depan putus, cahaya lampu tetap menyala normal.",0,"Filamen yang putus membuat lampu padam."],
+[0,"Kabel yang putus dapat menyebabkan lampu depan tidak menyala.",1,"Kabel putus menghambat aliran listrik ke lampu."],
+[0,"Tegangan baterai yang terlalu rendah dapat menyebabkan lampu yang menggunakan sumber baterai menjadi kurang terang.",1,"Tegangan rendah mengurangi daya yang sampai ke bohlam."],
+[0,"Lampu jauh dan lampu dekat tidak memiliki fungsi yang berbeda.",0,"Jarak jangkau dan arah sorotnya berbeda."],
+[0,"Pemeriksaan lampu depan dapat dilakukan dengan memeriksa bohlam, kabel, saklar, sekring, dan sumber tegangan.",1,"Pemeriksaan mencakup semua komponen pendukung sistem."],
+[1,"Lampu belakang berfungsi sebagai tanda keberadaan sepeda motor dari arah belakang.",1,"Lampu belakang memberi tahu posisi kendaraan kepada pengendara di belakang."],
+[1,"Lampu rem menyala lebih terang ketika rem dioperasikan.",1,"Intensitas lampu rem lebih besar daripada lampu belakang."],
+[1,"Saklar rem berfungsi menghubungkan rangkaian lampu rem ketika rem digunakan.",1,"Menekan tuas atau pedal rem mengaktifkan saklar rem."],
+[1,"Lampu belakang dan lampu rem memiliki fungsi yang sama persis.",0,"Lampu belakang menandai posisi, lampu rem menandai pengereman."],
+[1,"Bohlam atau LED yang rusak dapat menyebabkan lampu belakang tidak menyala.",1,"Elemen penerang yang rusak tidak menghasilkan cahaya."],
+[1,"Kabel massa yang tidak terhubung dengan baik dapat menyebabkan lampu tidak bekerja normal.",1,"Rangkaian listrik membutuhkan jalur massa yang baik."],
+[1,"Lampu rem tidak memiliki hubungan dengan sistem saklar rem.",0,"Saklar rem yang mengontrol penyalaan lampu rem."],
+[1,"Pemeriksaan sekring dapat dilakukan ketika mencari penyebab lampu belakang tidak menyala.",1,"Sekring putus memutus suplai listrik ke lampu."],
+[1,"Lampu rem penting untuk memberikan tanda kepada pengendara di belakang bahwa kendaraan sedang melakukan pengereman.",1,"Tanda ini membantu pengendara di belakang menjaga jarak."],
+[1,"Membersihkan dan memeriksa konektor dapat membantu menjaga sistem lampu tetap bekerja dengan baik.",1,"Konektor bersih mencegah hambatan berlebih pada arus."],
+[2,"Lampu sein digunakan untuk memberikan tanda ketika sepeda motor akan berbelok atau berpindah arah.",1,"Isyarat sein mencegah kecelakaan saat berbelok."],
+[2,"Lampu sein kanan digunakan untuk memberikan tanda bahwa kendaraan akan berbelok ke kanan.",1,"Sein kanan menandakan belokan ke kanan."],
+[2,"Flasher berfungsi mengatur kedipan lampu sein.",1,"Flasher memutus dan menyambung arus secara berkala."],
+[2,"Saklar sein digunakan untuk memilih lampu sein kanan atau kiri.",1,"Saklar mengarahkan arus ke sisi kanan atau kiri."],
+[2,"Lampu sein yang putus dapat menyebabkan sistem sein tidak bekerja dengan normal.",1,"Beban berubah sehingga kedipan flasher ikut terganggu."],
+[2,"Lampu sein tidak membutuhkan sumber listrik untuk dapat menyala.",0,"Semua komponen kelistrikan butuh suplai dari baterai atau spul."],
+[2,"Kabel yang terputus dapat menyebabkan salah satu lampu sein tidak menyala.",1,"Arus berhenti pada jalur kabel yang putus."],
+[2,"Flasher yang rusak dapat menyebabkan lampu sein tidak berkedip atau berkedip tidak normal.",1,"Kerusakan flasher mengganggu ritme kedipan."],
+[2,"Lampu sein kiri dan kanan harus menyala bersamaan ketika saklar sein digunakan.",0,"Saklar sein biasa hanya menyalakan satu sisi (kecuali saklar hazard)."],
+[2,"Pemeriksaan sistem sein dapat dilakukan dengan memeriksa baterai, sekring, flasher, saklar, kabel, dan lampu.",1,"Itu urutan umum untuk mencari gangguan sistem sein."]
+].map(([c, question, a, explanation]) => ({ category: CATS[c], question, answer: a === 1, explanation }));
+
+// ---------- penyimpanan (aman jika localStorage diblokir) ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+// ---------- suara ----------
+const audio = {
+  ctx: null, on: store.get('gq_sound', true),
+  init() {
+    try {
+      if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+    } catch (e) { this.ctx = null; }
+  },
+  beep(freqs, type, dur, vol) {
+    if (!this.on || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = type;
+      freqs.forEach((f, i) => o.frequency.setValueAtTime(f, t + i * dur / freqs.length));
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(this.ctx.destination);
+      o.start(t); o.stop(t + dur);
+    } catch (e) {}
+  },
+  ok() { this.beep([523, 659, 784], 'sine', 0.4, 0.25); },
+  bad() { this.beep([180, 120], 'sawtooth', 0.3, 0.2); },
+  tick() { this.beep([400], 'triangle', 0.05, 0.05); }
+};
+
+// ---------- state ----------
+const TIME_LIMIT = 15, FEEDBACK_MS = 3000;
+let order = [], idx = 0, score = 0, streak = 0, right = 0;
+let phase = 'idle'; // idle | asking | feedback
+let deadline = 0, timerId = null, nextId = null, runId = 0;
+let holdSec = store.get('gq_hold', 1.2), conf = store.get('gq_conf', 0.65);
+let armed = false, cur = null, prog = 0, lastFrame = performance.now(), tickAt = 0;
+
+// ---------- alur kuis ----------
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function setControls() {
+  const asking = phase === 'asking';
+  $('ansT').disabled = $('ansF').disabled = !asking;
+  $('stop').disabled = phase === 'idle';
+  $('start').style.display = phase === 'idle' ? '' : 'none';
+}
+
+function buildSteps() {
+  const st = $('steps'); st.innerHTML = '';
+  order.forEach(() => st.appendChild(document.createElement('i')));
+}
+function mark(cls) { const e = $('steps').children[idx]; if (e) e.className = cls; }
+
+let wake = null;
+async function keepAwake() {
+  try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && phase !== 'idle') keepAwake(); });
+
+function startQuiz() {
+  audio.init(); keepAwake();
+  clearTimeout(nextId); clearInterval(timerId);
+  runId++;
+  order = shuffle(RAW); idx = 0; score = 0; streak = 0; right = 0;
+  $('score').textContent = '0'; $('streak').textContent = '0';
+  buildSteps();
+  loadQuestion();
+}
+
+function loadQuestion() {
+  if (idx >= order.length) return finishQuiz();
+  const q = order[idx];
+  phase = 'asking'; armed = false; cur = null; prog = 0;
+  $('qcard').dataset.cat = CATS.indexOf(q.category); mark('cur');
+  $('qcat').textContent = q.category;
+  $('qnum').textContent = `Soal ${idx + 1} dari ${order.length}`;
+  $('qtext').textContent = q.question;
+  $('fb').style.display = 'none';
+  setControls();
+  deadline = Date.now() + TIME_LIMIT * 1000;
+  renderTime();
+  clearInterval(timerId);
+  timerId = setInterval(() => {
+    renderTime();
+    if (Date.now() >= deadline) answer(null);
+  }, 200);
+}
+
+function renderTime() {
+  const ms = Math.max(0, deadline - Date.now()), s = Math.ceil(ms / 1000);
+  $('time').textContent = s;
+  $('gauge').classList.toggle('low', s <= 5);
+  $('ring').style.strokeDashoffset = 113.1 * (1 - ms / (TIME_LIMIT * 1000));
+}
+
+function answer(val) {
+  if (phase !== 'asking') return;
+  phase = 'feedback';
+  clearInterval(timerId);
+  setControls();
+  const q = order[idx], fb = $('fb'), truth = q.answer ? 'BENAR' : 'SALAH';
+  let msg, cls;
+  if (val === null) {
+    streak = 0; cls = 'warn'; msg = `Waktu habis. Jawaban yang benar: ${truth}.`; audio.bad();
+  } else if (val === q.answer) {
+    const pts = 10;
+    score += pts; streak++; right++; cls = 'ok'; msg = `Tepat, +${pts} poin.`; audio.ok();
+  } else {
+    streak = 0; cls = 'bad'; msg = `Kurang tepat. Jawaban yang benar: ${truth}.`; audio.bad();
+  }
+  fb.className = cls; fb.style.display = 'block';
+  fb.textContent = msg + ' ' + q.explanation;
+  mark(val === q.answer ? 'ok' : 'bad');
+  $('score').textContent = score; $('streak').textContent = right;
+  const myRun = runId;
+  nextId = setTimeout(() => { if (myRun !== runId) return; idx++; loadQuestion(); }, FEEDBACK_MS);
+}
+
+function finishQuiz() {
+  phase = 'idle'; clearInterval(timerId);
+  $('qcat').textContent = 'Selesai';
+  $('qnum').textContent = '';
+  $('qtext').textContent = `Skor akhir ${score} dari ${order.length * 10}. Benar ${right} dari ${order.length} soal.`;
+  $('fb').style.display = 'none';
+  $('time').textContent = '-'; $('gauge').classList.remove('low'); $('ring').style.strokeDashoffset = 0;
+  $('start').textContent = 'Main lagi';
+  setControls();
+  $('start').focus();
+}
+
+function stopQuiz() {
+  runId++; clearTimeout(nextId); clearInterval(timerId);
+  phase = 'idle'; prog = 0; cur = null;
+  $('qcat').textContent = 'Dihentikan';
+  $('steps').innerHTML = ''; $('qcard').dataset.cat = '';
+  $('qnum').textContent = '';
+  $('qtext').textContent = 'Kuis dihentikan. Tekan Mulai untuk mengulang dari awal.';
+  $('fb').style.display = 'none';
+  $('time').textContent = '-'; $('gauge').classList.remove('low'); $('ring').style.strokeDashoffset = 0;
+  $('start').textContent = 'Mulai';
+  setControls();
+  $('start').focus();
+}
+
+// ---------- deteksi gerakan ----------
+// Gambar dari kamera tidak dicerminkan saat dikirim ke MediaPipe, jadi label
+// "Left" dari MediaPipe sebenarnya adalah tangan KANAN pengguna.
+function isRaised(lm) {
+  const extended = [[8, 6], [12, 10], [16, 14], [20, 18]].filter(([t, p]) => lm[t].y < lm[p].y).length;
+  return extended >= 3 && lm[12].y < lm[0].y - 0.1 && lm[0].y < 0.85;
+}
+
+function showBanner(text) {
+  const b = $('banner');
+  b.style.display = text ? 'block' : 'none';
+  if (text) b.textContent = text;
+}
+
+function handleGesture(choice, both) {
+  const now = performance.now();
+  const dt = Math.min((now - lastFrame) / 1000, 0.2);
+  lastFrame = now;
+
+  if (phase !== 'asking') { prog = 0; cur = null; showBanner(''); $('holdbar').style.width = '0'; return; }
+
+  if (!choice && !both) armed = true;
+
+  if (both) showBanner('Angkat satu tangan saja');
+  else if (choice && !armed) showBanner('Turunkan tangan dulu');
+  else if (choice) showBanner(`Terbaca: ${choice}`);
+  else showBanner('');
+
+  if (choice && armed) {
+    if (choice !== cur) { cur = choice; prog = 0; }
+    prog = Math.min(1, prog + dt / holdSec);
+    if (now - tickAt > 350) { tickAt = now; audio.tick(); }
+  } else {
+    prog = Math.max(0, prog - (dt / holdSec) * 2);
+    if (prog === 0) cur = null;
+  }
+  $('holdbar').style.width = Math.round(prog * 100) + '%';
+
+  if (prog >= 1) { const c = cur; prog = 0; cur = null; showBanner(''); answer(c === 'BENAR'); }
+}
+
+// ---------- kamera & MediaPipe ----------
+const video = $('video'), cv = $('cv'), ctx = cv.getContext('2d');
+let camReady = false;
+
+function camError(title, detail, retry, plain) {
+  const m = $('camMsg');
+  m.style.display = 'flex';
+  m.innerHTML = '';
+  const b = document.createElement('b'), t = document.createElement('span');
+  b.textContent = title;
+  t.textContent = plain ? detail : detail + ' Kuis tetap bisa dimainkan dengan tombol Benar/Salah, tombol panah, atau remote TV.';
+  m.append(b, t);
+  if (retry) {
+    const r = document.createElement('button');
+    r.className = 'btn'; r.textContent = 'Coba lagi'; r.style.cssText = 'margin-top:10px;color:#15171a';
+    r.onclick = retry; m.appendChild(r);
+  }
+}
+
+function onResults(r) {
+  const w = r.image.width || video.videoWidth || 640, h = r.image.height || video.videoHeight || 480;
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; $('stage').style.aspectRatio = w + ' / ' + h; }
+  ctx.drawImage(r.image, 0, 0, w, h);
+  if (!camReady) { camReady = true; $('camMsg').style.display = 'none'; }
+
+  const found = { BENAR: false, SALAH: false };
+  const lms = r.multiHandLandmarks || [], sides = r.multiHandedness || [];
+  lms.forEach((lm, i) => {
+    const raised = isRaised(lm);
+    try {
+      drawConnectors(ctx, lm, HAND_CONNECTIONS, { color: raised ? '#f5c518' : '#ffffff', lineWidth: 3 });
+      drawLandmarks(ctx, lm, { color: '#16181a', fillColor: '#ffffff', lineWidth: 1, radius: 3 });
+    } catch (e) {}
+    const label = sides[i] && sides[i].label;
+    if (raised && label) found[label === 'Left' ? 'BENAR' : 'SALAH'] = true;
+  });
+  $('zr').classList.toggle('on', found.BENAR);
+  $('zl').classList.toggle('on', found.SALAH);
+  const both = found.BENAR && found.SALAH;
+  handleGesture(both ? null : found.BENAR ? 'BENAR' : found.SALAH ? 'SALAH' : null, both);
+}
+
+let hands = null, stream = null, looping = false, busy = false;
+const lite = /Android/i.test(navigator.userAgent); // HP dan TV Android: model & resolusi lebih ringan
+const inApp = /; wv\)|FBAN|FBAV|Instagram|Line\/|MicroMessenger|WhatsApp|Telegram/i.test(navigator.userAgent);
+
+function explain(err) {
+  const n = err && err.name;
+  const local = location.protocol === 'file:' || location.protocol === 'content:';
+  if (n === 'NotAllowedError' || n === 'SecurityError') {
+    if (window.top !== window) return ['Kamera diblokir halaman induk', 'Buka halaman ini langsung di tab sendiri, bukan di dalam frame.'];
+    if (inApp) return ['Kamera diblokir oleh aplikasi ini', 'Buka lewat Chrome, bukan dari dalam WhatsApp, pengelola file, atau browser bawaan aplikasi.'];
+    if (local) return ['Browser menolak kamera untuk file lokal', 'Chrome di HP/TV menolak kamera otomatis untuk file yang dibuka langsung. Taruh file di hosting https (GitHub Pages atau Netlify) lalu buka alamatnya.'];
+    return ['Izin kamera ditolak', 'Ketuk ikon gembok di address bar, pilih Izin lalu Kamera lalu Izinkan. Cek juga Pengaturan Android, Aplikasi, browser, Izin, Kamera. Setelah itu tekan Coba lagi.'];
+  }
+  if (n === 'NotFoundError' || n === 'OverconstrainedError') return ['Kamera tidak ditemukan', 'Sambungkan kamera (di TV pakai webcam USB) lalu tekan Coba lagi.'];
+  if (n === 'NotReadableError' || n === 'AbortError') return ['Kamera sedang dipakai aplikasi lain', 'Tutup aplikasi atau tab yang memakai kamera lalu tekan Coba lagi.'];
+  return ['Kamera gagal dibuka', (err && err.message ? err.message + '. ' : '') + 'Tekan Coba lagi.'];
+}
+
+async function openStream() {
+  const tries = [
+    { video: { facingMode: 'user', width: { ideal: lite ? 640 : 960 }, height: { ideal: lite ? 360 : 540 } }, audio: false },
+    { video: { facingMode: 'user' }, audio: false },
+    { video: true, audio: false }
+  ];
+  let last;
+  for (const c of tries) {
+    try { return await navigator.mediaDevices.getUserMedia(c); }
+    catch (e) { last = e; if (e.name === 'NotAllowedError' || e.name === 'SecurityError') break; }
+  }
+  throw last;
+}
+
+async function loop() {
+  if (!busy && hands && video.readyState >= 2 && video.videoWidth) {
+    busy = true;
+    try { await hands.send({ image: video }); } catch (e) { console.error(e); }
+    busy = false;
+  }
+  requestAnimationFrame(loop);
+}
+
+async function startCamera() {
+  if (typeof Hands === 'undefined') return camError('Model tangan gagal dimuat', 'Periksa koneksi internet lalu muat ulang halaman.', () => location.reload(), true);
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return camError('Kamera tidak tersedia', 'Browser ini tidak mendukung kamera, atau halaman tidak aman (butuh https).');
+  }
+  camError('Menyiapkan kamera', 'Izinkan akses kamera saat browser meminta.', null, true);
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await openStream();
+    video.srcObject = stream;
+    await video.play();
+    if (!hands) {
+      hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}` });
+      hands.setOptions({ maxNumHands: 2, modelComplexity: lite ? 0 : 1, minDetectionConfidence: conf, minTrackingConfidence: conf });
+      hands.onResults(onResults);
+    }
+    if (!looping) { looping = true; loop(); }
+  } catch (err) {
+    console.error(err);
+    const [t, d] = explain(err);
+    camError(t, d, startCamera);
+  }
+}
+
+// ---------- modal & pengaturan ----------
+function openModal(id) { $(id).classList.add('open'); const c = $(id).querySelector('[data-close]'); if (c) c.focus(); }
+function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('open')); }
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) closeModals(); }));
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModals));
+$('openQ').onclick = () => openModal('mQ');
+$('openCal').onclick = () => openModal('mCal');
+
+function syncSettings() {
+  $('sHold').value = holdSec; $('vHold').textContent = holdSec.toFixed(1) + ' detik';
+  $('sConf').value = conf; $('vConf').textContent = conf.toFixed(2);
+  $('sSound').checked = audio.on;
+}
+$('sHold').oninput = e => { holdSec = parseFloat(e.target.value); store.set('gq_hold', holdSec); syncSettings(); };
+$('sConf').oninput = e => {
+  conf = parseFloat(e.target.value); store.set('gq_conf', conf); syncSettings();
+  if (hands) try { hands.setOptions({ minDetectionConfidence: conf, minTrackingConfidence: conf }); } catch (err) {}
+};
+$('sSound').onchange = e => { audio.on = e.target.checked; store.set('gq_sound', audio.on); };
+
+// ---------- kontrol ----------
+$('start').onclick = startQuiz;
+$('stop').onclick = stopQuiz;
+$('ansT').onclick = () => answer(true);
+$('ansF').onclick = () => answer(false);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModals();
+  if (document.querySelector('.modal.open') || phase !== 'asking') return;
+  if (e.key === 'ArrowRight') answer(true);
+  if (e.key === 'ArrowLeft') answer(false);
+});
+
+// ---------- mulai ----------
+$('qlist').append(...RAW.map((q, i) => {
+  const d = document.createElement('div'); d.className = 'qi';
+  d.textContent = `${i + 1}. ${q.question}`;
+  const s = document.createElement('small');
+  s.textContent = `${q.category}. Jawaban: ${q.answer ? 'Benar' : 'Salah'}`;
+  d.appendChild(s); return d;
+}));
+syncSettings();
+setControls();
+$('start').focus();
+startCamera();
+</script>
+</body>
+</html>
